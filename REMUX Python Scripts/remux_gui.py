@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 remux_gui.py
-A GUI for the batch remuxing script, built with tkinter.
+A GUI for the batch remuxing script with language detection, built with tkinter.
 """
 
 import json
@@ -35,6 +35,27 @@ def identify_tracks(mkvmerge_path: str, src: Path, timeout: float = 10.0):
         return {"ok": True, "data": json.loads(res.stdout)}
     except Exception as e:
         return {"ok": False, "err": str(e)}
+
+def get_available_languages(mkvmerge_path: str, files: list):
+    """Scan all files and return available audio and subtitle languages."""
+    all_audio_langs = set()
+    all_sub_langs = set()
+    
+    for file in files:
+        ident = identify_tracks(mkvmerge_path, file)
+        if not ident["ok"]:
+            continue
+        
+        for track in ident["data"].get("tracks", []):
+            track_type = track.get("type", "").lower()
+            lang = track.get("properties", {}).get("language", "und").lower()
+            
+            if track_type == "audio":
+                all_audio_langs.add(lang)
+            elif track_type in ("subtitles", "subtitle"):
+                all_sub_langs.add(lang)
+    
+    return sorted(all_audio_langs), sorted(all_sub_langs)
 
 def fmt_time(sec: Optional[float]) -> str:
     if sec is None:
@@ -70,11 +91,11 @@ def remux_file(mkvmerge_path: str, src_path: Path, out_path: Path, audio_langs: 
 
     audio_ids = [
         t["id"] for t in ident["data"].get("tracks", [])
-        if t.get("type") == "audio" and (t.get("properties", {}).get("language") or "").lower() in audio_langs
+        if t.get("type") == "audio" and (t.get("properties", {}).get("language") or "und").lower() in audio_langs
     ]
     sub_ids = [
         t["id"] for t in ident["data"].get("tracks", [])
-        if t.get("type") == "subtitles" and (t.get("properties", {}).get("language") or "").lower() in sub_langs
+        if t.get("type") in ("subtitles", "subtitle") and (t.get("properties", {}).get("language") or "und").lower() in sub_langs
     ]
 
     if not audio_ids:
@@ -124,7 +145,7 @@ class RemuxApp:
     def __init__(self, root):
         self.root = root
         self.root.title("MKV Batch Remuxer")
-        self.root.geometry("900x600")
+        self.root.geometry("900x650")
 
         self.mkvmerge_path = find_mkvmerge()
         self.update_queue = queue.Queue()
@@ -150,7 +171,7 @@ class RemuxApp:
         ttk.Button(io_frame, text="Browse...", command=self.browse_output).grid(row=1, column=2, padx=5)
 
         # Options Frame
-        opts_frame = ttk.LabelFrame(main_frame, text="Options", padding="10")
+        opts_frame = ttk.LabelFrame(main_frame, text="Language Options", padding="10")
         opts_frame.pack(fill=tk.X, pady=5)
         opts_frame.columnconfigure(1, weight=1)
         opts_frame.columnconfigure(3, weight=1)
@@ -163,11 +184,17 @@ class RemuxApp:
         self.sub_langs = tk.StringVar(value="eng")
         ttk.Entry(opts_frame, textvariable=self.sub_langs).grid(row=0, column=3, sticky=tk.EW, padx=5)
 
+        # Scan Languages Button
+        scan_frame = ttk.Frame(opts_frame)
+        scan_frame.grid(row=1, column=0, columnspan=4, pady=5)
+        self.scan_button = ttk.Button(scan_frame, text="🔍 Scan Available Languages", command=self.scan_languages)
+        self.scan_button.pack()
+
         self.skip_exists = tk.BooleanVar(value=True)
-        ttk.Checkbutton(opts_frame, text="Skip if output exists", variable=self.skip_exists).grid(row=1, column=0, columnspan=2, sticky=tk.W, padx=5, pady=5)
+        ttk.Checkbutton(opts_frame, text="Skip if output exists", variable=self.skip_exists).grid(row=2, column=0, columnspan=2, sticky=tk.W, padx=5, pady=5)
         
         self.dry_run = tk.BooleanVar(value=False)
-        ttk.Checkbutton(opts_frame, text="Dry-run only", variable=self.dry_run).grid(row=1, column=2, columnspan=2, sticky=tk.W, padx=5, pady=5)
+        ttk.Checkbutton(opts_frame, text="Dry-run only", variable=self.dry_run).grid(row=2, column=2, columnspan=2, sticky=tk.W, padx=5, pady=5)
 
         # File List / Progress Table
         tree_frame = ttk.Frame(main_frame)
@@ -204,6 +231,7 @@ class RemuxApp:
         if not self.mkvmerge_path:
             self.show_error("mkvmerge not found. Please install MKVToolNix and ensure mkvmerge is in your system's PATH.")
             self.start_button.config(state=tk.DISABLED)
+            self.scan_button.config(state=tk.DISABLED)
 
     def browse_input(self):
         path = filedialog.askdirectory()
@@ -219,6 +247,93 @@ class RemuxApp:
 
     def show_error(self, message):
         messagebox.showerror("Error", message)
+
+    def scan_languages(self):
+        """Scan MKV files in input directory and display available languages."""
+        input_path = Path(self.input_dir.get())
+        
+        if not input_path.is_dir():
+            self.show_error("Please select a valid input directory first.")
+            return
+        
+        mkv_files = sorted(input_path.glob("*.mkv"))
+        if not mkv_files:
+            messagebox.showwarning("No Files", "No .mkv files found in the input directory.")
+            return
+        
+        self.status_label.config(text=f"Scanning {len(mkv_files)} files for available languages...")
+        self.scan_button.config(state=tk.DISABLED)
+        self.root.update()
+        
+        # Run scan in separate thread to avoid freezing GUI
+        def scan_thread():
+            audio_langs, sub_langs = get_available_languages(self.mkvmerge_path, mkv_files)
+            self.root.after(0, lambda: self.display_scan_results(audio_langs, sub_langs))
+        
+        threading.Thread(target=scan_thread, daemon=True).start()
+
+    def display_scan_results(self, audio_langs, sub_langs):
+        """Display the scan results and update the language fields."""
+        self.scan_button.config(state=tk.NORMAL)
+        self.status_label.config(text="Ready.")
+        
+        # Create popup window with results
+        result_window = tk.Toplevel(self.root)
+        result_window.title("Available Languages")
+        result_window.geometry("500x400")
+        result_window.transient(self.root)
+        result_window.grab_set()
+        
+        main = ttk.Frame(result_window, padding="10")
+        main.pack(fill=tk.BOTH, expand=True)
+        
+        # Audio languages
+        ttk.Label(main, text="Available Audio Languages:", font=("TkDefaultFont", 10, "bold")).pack(anchor=tk.W, pady=(0,5))
+        audio_frame = ttk.Frame(main)
+        audio_frame.pack(fill=tk.BOTH, expand=True, pady=(0,10))
+        
+        audio_text = tk.Text(audio_frame, height=8, wrap=tk.WORD)
+        audio_scroll = ttk.Scrollbar(audio_frame, orient="vertical", command=audio_text.yview)
+        audio_text.configure(yscrollcommand=audio_scroll.set)
+        audio_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        audio_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        if audio_langs:
+            audio_text.insert("1.0", ", ".join(audio_langs))
+        else:
+            audio_text.insert("1.0", "None found")
+        audio_text.config(state=tk.DISABLED)
+        
+        # Subtitle languages
+        ttk.Label(main, text="Available Subtitle Languages:", font=("TkDefaultFont", 10, "bold")).pack(anchor=tk.W, pady=(0,5))
+        sub_frame = ttk.Frame(main)
+        sub_frame.pack(fill=tk.BOTH, expand=True, pady=(0,10))
+        
+        sub_text = tk.Text(sub_frame, height=8, wrap=tk.WORD)
+        sub_scroll = ttk.Scrollbar(sub_frame, orient="vertical", command=sub_text.yview)
+        sub_text.configure(yscrollcommand=sub_scroll.set)
+        sub_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        sub_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        if sub_langs:
+            sub_text.insert("1.0", ", ".join(sub_langs))
+        else:
+            sub_text.insert("1.0", "None found")
+        sub_text.config(state=tk.DISABLED)
+        
+        # Button frame
+        btn_frame = ttk.Frame(main)
+        btn_frame.pack(fill=tk.X, pady=(10,0))
+        
+        def use_languages():
+            if audio_langs:
+                self.audio_langs.set(",".join(audio_langs))
+            if sub_langs:
+                self.sub_langs.set(",".join(sub_langs))
+            result_window.destroy()
+        
+        ttk.Button(btn_frame, text="Use These Languages", command=use_languages).pack(side=tk.RIGHT, padx=5)
+        ttk.Button(btn_frame, text="Close", command=result_window.destroy).pack(side=tk.RIGHT)
 
     def start_remux(self):
         if self.running:
@@ -253,6 +368,7 @@ class RemuxApp:
 
         self.running = True
         self.start_button.config(state=tk.DISABLED)
+        self.scan_button.config(state=tk.DISABLED)
         self.status_label.config(text=f"Processing {len(mkv_files)} files...")
 
         self.worker_thread = threading.Thread(
@@ -278,6 +394,7 @@ class RemuxApp:
                 if msg.get("type") == "finished":
                     self.running = False
                     self.start_button.config(state=tk.NORMAL)
+                    self.scan_button.config(state=tk.NORMAL)
                     ok_count = sum(1 for i in self.file_map.values() if self.tree.item(i['id'])['values'][4] == "OK")
                     fail_count = len(self.file_map) - ok_count
                     self.status_label.config(text=f"Completed. OK: {ok_count}, Failed: {fail_count}.")
