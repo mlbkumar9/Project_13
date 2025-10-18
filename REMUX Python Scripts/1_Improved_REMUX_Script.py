@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 remux_rich_improved.py
-Batch remux MKV files keeping only English audio + English subtitles.
+Batch remux MKV files with user-selected audio and subtitle languages.
 Rich live table UI with improved layout: separate % column, persistent progress bars,
 separate result column, and gap before batch row.
 """
@@ -41,6 +41,61 @@ def identify_tracks(mkvmerge_path: str, src: Path, timeout: float = 10.0):
         return {"ok": True, "data": json.loads(res.stdout)}
     except Exception as e:
         return {"ok": False, "err": str(e)}
+
+def get_available_languages(mkvmerge_path: str, files: list):
+    """Scan all MKV files and return available audio and subtitle languages."""
+    all_audio_langs = set()
+    all_sub_langs = set()
+    
+    console.print("\n[yellow]Scanning files for available languages...[/yellow]")
+    
+    for file in files:
+        ident = identify_tracks(mkvmerge_path, file)
+        if not ident["ok"]:
+            continue
+        
+        for track in ident["data"].get("tracks", []):
+            track_type = track.get("type", "").lower()
+            lang = track.get("properties", {}).get("language", "und").lower()
+            
+            if track_type == "audio":
+                all_audio_langs.add(lang)
+            elif track_type in ("subtitles", "subtitle"):
+                all_sub_langs.add(lang)
+    
+    return sorted(all_audio_langs), sorted(all_sub_langs)
+
+def prompt_language_selection(audio_langs_available, sub_langs_available):
+    """Prompt user to select languages from available options."""
+    console.print(f"\n[bold cyan]Available Audio Languages:[/bold cyan] {', '.join(audio_langs_available) if audio_langs_available else 'None found'}")
+    console.print(f"[bold cyan]Available Subtitle Languages:[/bold cyan] {', '.join(sub_langs_available) if sub_langs_available else 'None found'}\n")
+    
+    # Audio language selection
+    audio_input = input("Enter audio languages to keep (comma-separated, e.g., 'eng,jpn') or press Enter for all: ").strip()
+    if audio_input:
+        audio_langs = [lang.strip().lower() for lang in audio_input.split(",") if lang.strip()]
+        # Validate user input
+        invalid_audio = [lang for lang in audio_langs if lang not in audio_langs_available]
+        if invalid_audio:
+            console.print(f"[yellow]Warning: These audio languages were not found: {', '.join(invalid_audio)}[/yellow]")
+    else:
+        audio_langs = list(audio_langs_available)
+    
+    # Subtitle language selection
+    sub_input = input("Enter subtitle languages to keep (comma-separated, e.g., 'eng,jpn') or press Enter for all: ").strip()
+    if sub_input:
+        sub_langs = [lang.strip().lower() for lang in sub_input.split(",") if lang.strip()]
+        # Validate user input
+        invalid_subs = [lang for lang in sub_langs if lang not in sub_langs_available]
+        if invalid_subs:
+            console.print(f"[yellow]Warning: These subtitle languages were not found: {', '.join(invalid_subs)}[/yellow]")
+    else:
+        sub_langs = list(sub_langs_available)
+    
+    console.print(f"\n[green]Selected audio languages:[/green] {', '.join(audio_langs) if audio_langs else 'None'}")
+    console.print(f"[green]Selected subtitle languages:[/green] {', '.join(sub_langs) if sub_langs else 'None'}\n")
+    
+    return audio_langs, sub_langs
 
 def shorten(name: str, max_len: int = 40) -> str:
     if len(name) <= max_len:
@@ -404,15 +459,6 @@ def main():
     output_dir = Path(outp) if outp else input_dir / "remuxed"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    audio_langs_str = input("Enter desired audio languages (comma-separated, e.g., eng,jpn): ").strip().lower()
-    audio_langs = [lang.strip() for lang in audio_langs_str.split(',') if lang.strip()]
-    if not audio_langs:
-        console.print("[red]At least one audio language is required.[/]")
-        return
-
-    sub_langs_str = input("Enter desired subtitle languages (comma-separated, e.g., eng,ger) (blank for none): ").strip().lower()
-    sub_langs = [lang.strip() for lang in sub_langs_str.split(',') if lang.strip()]
-
     skip_if_exists = (input("Skip files if output exists? (Y/n) [Y]: ").strip().lower() != "n")
     dry_run = (input("Dry-run only? (y/N) [N]: ").strip().lower() == "y")
 
@@ -429,6 +475,20 @@ def main():
         return
 
     console.print(f"Found {total} MKV file(s) in: {input_dir}\n")
+
+    # Scan files for available languages
+    audio_langs_available, sub_langs_available = get_available_languages(mkvmerge_path, mkv_files)
+    
+    if not audio_langs_available:
+        console.print("[red]No audio tracks found in any file. Cannot proceed.[/]")
+        return
+    
+    # Prompt user for language selection
+    audio_langs, sub_langs = prompt_language_selection(audio_langs_available, sub_langs_available)
+    
+    if not audio_langs:
+        console.print("[red]At least one audio language must be selected.[/]")
+        return
 
     # prepare rows
     rows = []
@@ -449,7 +509,8 @@ def main():
     log_path = output_dir / "remux_log.txt"
     with open(log_path, "a", encoding="utf-8") as lf:
         lf.write(f"==== remux run: {time.strftime('%Y-%m-%d %H:%M:%S')} ====\n")
-        lf.write(f"Input dir: {input_dir}\nOutput dir: {output_dir}\nFiles: {total}\n\n")
+        lf.write(f"Input dir: {input_dir}\nOutput dir: {output_dir}\nFiles: {total}\n")
+        lf.write(f"Audio languages: {', '.join(audio_langs)}\nSubtitle languages: {', '.join(sub_langs)}\n\n")
 
     # store executed commands for debug (optional)
     log_commands = []
