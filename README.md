@@ -11,7 +11,7 @@
 
   <!-- Badges -->
   <p>
-    <a href="https://github.com/mlbkumar9/Project_13/blob/master/LICENSE"><img src="https://img.shields.io/github/license/mlbkumar9/Project_13?style=for-the-badge" alt="License"></a>
+    <a href="https://github.com/mlbkumar9/Project_13/blob/main/LICENSE"><img src="https://img.shields.io/github/license/mlbkumar9/Project_13?style=for-the-badge" alt="License"></a>
     <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.7+-blue?style=for-the-badge&logo=python" alt="Python Version"></a>
     <a href="https://mkvtoolnix.download/"><img src="https://img.shields.io/badge/MKVToolNix-Required-green?style=for-the-badge" alt="MKVToolNix"></a>
   </p>
