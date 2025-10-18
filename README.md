@@ -11,7 +11,7 @@
 
   <!-- Badges -->
   <p>
-    <a href="https://github.com/mlbkumar9/Project_13/blob/master/LICENSE"><img src="https://img.shields.io/github/license/mlbkumar9/Project_13?style=for-the-badge" alt="License"></a>
+    <a href="https://github.com/mlbkumar9/Project_13/blob/master/LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge" alt="License"></a>
     <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.7+-blue?style=for-the-badge&logo=python" alt="Python Version"></a>
     <a href="https://mkvtoolnix.download/"><img src="https://img.shields.io/badge/MKVToolNix-Required-green?style=for-the-badge" alt="MKVToolNix"></a>
   </p>
@@ -178,4 +178,3 @@ This project is distributed under the MIT License. See the `LICENSE` file for mo
 *   [MKVToolNix](https://mkvtoolnix.download/)
 *   [Rich](https://github.com/Textualize/rich)
 *   [Tkinter](https://docs.python.org/3/library/tkinter.html)
-
