@@ -1,5 +1,9 @@
 <div align="center">
-  <img src="https://via.placeholder.com/600x200.png?text=MKV+Batch+Remuxer" alt="Project Banner">
+  <!-- 
+    NOTE: This is a placeholder banner. You can create your own banner image 
+    (e.g., 1200x400 pixels) and replace the URL below. 
+  -->
+  <img src="https://via.placeholder.com/800x300.png?text=MKV+Batch+Remuxer" alt="Project Banner">
   <h1>MKV Batch Remuxer</h1>
   <p>
     A powerful and versatile tool for batch remuxing MKV files with both a GUI and a CLI.
@@ -71,25 +75,66 @@ Follow these steps to get the MKV Batch Remuxer up and running on your system.
 
 ---
 
-## ⚙️ Usage
+## ⚙️ Usage Guide
 
-You can run the tool in either GUI or CLI mode.
+This guide provides detailed instructions for both the GUI and CLI modes.
 
-### GUI Mode
+### GUI Mode (`REMUX_GUI.py`)
 
-Launch the graphical interface with the following command:
+The GUI provides a visual way to interact with the tool.
 
-```bash
-python "Project_13/REMUX_GUI.py"
-```
+**1. Launch the Application:**
+   Run the script from your terminal:
+   ```bash
+   python "Project_13/REMUX_GUI.py"
+   ```
 
-### CLI Mode
+**2. Select Directories:**
+   *   Click the **"Browse"** button next to "Input Directory" to choose the folder containing your MKV files.
+   *   Click the **"Browse"** button next to "Output Directory" to choose where the new files will be saved. The tool will create this directory if it doesn't exist.
 
-Launch the interactive command-line interface with this command:
+**3. Scan for Languages:**
+   *   Once you select an input directory, the tool automatically scans the files and populates the "Available Audio Languages" and "Available Subtitle Languages" lists. This shows you all the language tracks present in your media collection.
 
-```bash
-python "Project_13/REMUX_Script.py"
-```
+**4. Choose Languages:**
+   *   **Manual Entry:** Type the desired ISO 639-2 language codes (e.g., `eng,spa,jpn`) into the "Audio Languages" and "Subtitle Languages" fields.
+   *   **Quick Select:** Use the **"Select All Audio"** or **"Select All Subtitles"** buttons to automatically populate the fields with all available languages. Use the **"Clear"** buttons to reset the fields.
+
+**5. Configure Options:**
+   *   **Skip if output exists:** Keep this checked (default) to avoid re-processing files that are already in the output directory.
+   *   **Dry-run only:** Check this box if you want the tool to perform a test run. It will generate logs and show what it *would* do without creating any new video files.
+
+**6. Start Remuxing:**
+   *   Click the **"Start!"** button.
+   *   The progress table will update in real-time, showing the status of each file. You can monitor the progress bar, elapsed/remaining time, and status (e.g., `Processing`, `OK`, `Skipped`, `Failed`).
+
+**7. Review Summary:**
+   *   After the process is complete, a message box will appear summarizing the results (e.g., "Processed 10 files: 8 OK, 2 Skipped, 0 Failed").
+
+### CLI Mode (`REMUX_Script.py`)
+
+The CLI is perfect for automation, scripting, or for users who prefer the terminal.
+
+**1. Launch the Application:**
+   Run the script from your terminal:
+   ```bash
+   python "Project_13/REMUX_Script.py"
+   ```
+
+**2. Follow Interactive Prompts:**
+   The script will guide you with a series of questions:
+   *   **Input Directory:** Enter the full path to the folder containing your MKV files.
+   *   **Output Directory:** Enter the path for the processed files.
+   *   **Available Languages:** The script will scan your files and show you the available audio and subtitle languages.
+   *   **Select Audio/Subtitle Languages:** Enter the language codes you want to keep, separated by commas. You can press **Enter** to select all available languages. The script will warn you if you enter a language code that wasn't found.
+   *   **Skip Existing Files:** You'll be asked if you want to skip files that already exist in the output directory (default is Yes).
+   *   **Dry-Run Mode:** You'll be asked if you want to run in preview mode (default is No).
+
+**3. Monitor Progress:**
+   *   Once configured, the script will display a live progress table powered by `rich`. It shows the status of each file and a summary row for the overall batch progress.
+
+**4. Check the Logs:**
+   *   After completion, you can find a detailed `remux_log.txt` file in your output directory. This log contains a summary of all operations, the exact `mkvmerge` commands that were executed, and any errors that occurred. This is extremely useful for troubleshooting.
 
 ---
 
@@ -133,3 +178,4 @@ This project is distributed under the MIT License. See the `LICENSE` file for mo
 *   [MKVToolNix](https://mkvtoolnix.download/)
 *   [Rich](https://github.com/Textualize/rich)
 *   [Tkinter](https://docs.python.org/3/library/tkinter.html)
+
