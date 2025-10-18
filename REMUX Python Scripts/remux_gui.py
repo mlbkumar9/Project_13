@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 remux_gui.py
-A GUI for the batch remuxing script, built with tkinter.
+A GUI for the batch remuxing script with automatic language detection, built with tkinter.
 """
 
 import json
@@ -35,6 +35,27 @@ def identify_tracks(mkvmerge_path: str, src: Path, timeout: float = 10.0):
         return {"ok": True, "data": json.loads(res.stdout)}
     except Exception as e:
         return {"ok": False, "err": str(e)}
+
+def get_available_languages(mkvmerge_path: str, files: list):
+    """Scan all files and return available audio and subtitle languages."""
+    all_audio_langs = set()
+    all_sub_langs = set()
+    
+    for file in files:
+        ident = identify_tracks(mkvmerge_path, file)
+        if not ident["ok"]:
+            continue
+        
+        for track in ident["data"].get("tracks", []):
+            track_type = track.get("type", "").lower()
+            lang = track.get("properties", {}).get("language", "und").lower()
+            
+            if track_type == "audio":
+                all_audio_langs.add(lang)
+            elif track_type in ("subtitles", "subtitle"):
+                all_sub_langs.add(lang)
+    
+    return sorted(all_audio_langs), sorted(all_sub_langs)
 
 def fmt_time(sec: Optional[float]) -> str:
     if sec is None:
@@ -70,11 +91,11 @@ def remux_file(mkvmerge_path: str, src_path: Path, out_path: Path, audio_langs: 
 
     audio_ids = [
         t["id"] for t in ident["data"].get("tracks", [])
-        if t.get("type") == "audio" and (t.get("properties", {}).get("language") or "").lower() in audio_langs
+        if t.get("type") == "audio" and (t.get("properties", {}).get("language") or "und").lower() in audio_langs
     ]
     sub_ids = [
         t["id"] for t in ident["data"].get("tracks", [])
-        if t.get("type") == "subtitles" and (t.get("properties", {}).get("language") or "").lower() in sub_langs
+        if t.get("type") in ("subtitles", "subtitle") and (t.get("properties", {}).get("language") or "und").lower() in sub_langs
     ]
 
     if not audio_ids:
@@ -124,11 +145,13 @@ class RemuxApp:
     def __init__(self, root):
         self.root = root
         self.root.title("MKV Batch Remuxer")
-        self.root.geometry("900x600")
+        self.root.geometry("950x700")
 
         self.mkvmerge_path = find_mkvmerge()
         self.update_queue = queue.Queue()
         self.running = False
+        self.available_audio_langs = []
+        self.available_sub_langs = []
 
         # --- UI Setup ---
         main_frame = ttk.Frame(root, padding="10")
@@ -149,25 +172,56 @@ class RemuxApp:
         ttk.Entry(io_frame, textvariable=self.output_dir).grid(row=1, column=1, sticky=tk.EW)
         ttk.Button(io_frame, text="Browse...", command=self.browse_output).grid(row=1, column=2, padx=5)
 
+        # Available Languages Display Frame
+        avail_frame = ttk.LabelFrame(main_frame, text="Available Languages in MKV Files", padding="10")
+        avail_frame.pack(fill=tk.X, pady=5)
+        
+        # Audio languages display
+        ttk.Label(avail_frame, text="Audio:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=2)
+        self.avail_audio_label = ttk.Label(avail_frame, text="Select input directory to scan...", 
+                                           foreground="gray", relief=tk.SUNKEN, padding=5)
+        self.avail_audio_label.grid(row=0, column=1, sticky=tk.EW, padx=5, pady=2)
+        
+        # Subtitle languages display
+        ttk.Label(avail_frame, text="Subtitles:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=2)
+        self.avail_sub_label = ttk.Label(avail_frame, text="Select input directory to scan...", 
+                                         foreground="gray", relief=tk.SUNKEN, padding=5)
+        self.avail_sub_label.grid(row=1, column=1, sticky=tk.EW, padx=5, pady=2)
+        
+        avail_frame.columnconfigure(1, weight=1)
+
         # Options Frame
-        opts_frame = ttk.LabelFrame(main_frame, text="Options", padding="10")
+        opts_frame = ttk.LabelFrame(main_frame, text="Language Selection", padding="10")
         opts_frame.pack(fill=tk.X, pady=5)
         opts_frame.columnconfigure(1, weight=1)
         opts_frame.columnconfigure(3, weight=1)
 
         ttk.Label(opts_frame, text="Audio Langs:").grid(row=0, column=0, sticky=tk.W, padx=5)
         self.audio_langs = tk.StringVar(value="eng")
-        ttk.Entry(opts_frame, textvariable=self.audio_langs).grid(row=0, column=1, sticky=tk.EW, padx=5)
+        audio_entry = ttk.Entry(opts_frame, textvariable=self.audio_langs)
+        audio_entry.grid(row=0, column=1, sticky=tk.EW, padx=5)
+        ttk.Label(opts_frame, text="(comma-separated, e.g., eng,jpn)", foreground="gray", font=("TkDefaultFont", 8)).grid(row=1, column=1, sticky=tk.W, padx=5)
 
         ttk.Label(opts_frame, text="Subtitle Langs:").grid(row=0, column=2, sticky=tk.W, padx=5)
         self.sub_langs = tk.StringVar(value="eng")
-        ttk.Entry(opts_frame, textvariable=self.sub_langs).grid(row=0, column=3, sticky=tk.EW, padx=5)
+        sub_entry = ttk.Entry(opts_frame, textvariable=self.sub_langs)
+        sub_entry.grid(row=0, column=3, sticky=tk.EW, padx=5)
+        ttk.Label(opts_frame, text="(comma-separated, e.g., eng,ger)", foreground="gray", font=("TkDefaultFont", 8)).grid(row=1, column=3, sticky=tk.W, padx=5)
+
+        # Quick select buttons
+        btn_frame = ttk.Frame(opts_frame)
+        btn_frame.grid(row=2, column=0, columnspan=4, pady=10)
+        
+        ttk.Button(btn_frame, text="Select All Audio", command=self.select_all_audio).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Select All Subtitles", command=self.select_all_subs).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Clear Audio", command=lambda: self.audio_langs.set("")).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Clear Subtitles", command=lambda: self.sub_langs.set("")).pack(side=tk.LEFT, padx=5)
 
         self.skip_exists = tk.BooleanVar(value=True)
-        ttk.Checkbutton(opts_frame, text="Skip if output exists", variable=self.skip_exists).grid(row=1, column=0, columnspan=2, sticky=tk.W, padx=5, pady=5)
+        ttk.Checkbutton(opts_frame, text="Skip if output exists", variable=self.skip_exists).grid(row=3, column=0, columnspan=2, sticky=tk.W, padx=5, pady=5)
         
         self.dry_run = tk.BooleanVar(value=False)
-        ttk.Checkbutton(opts_frame, text="Dry-run only", variable=self.dry_run).grid(row=1, column=2, columnspan=2, sticky=tk.W, padx=5, pady=5)
+        ttk.Checkbutton(opts_frame, text="Dry-run only", variable=self.dry_run).grid(row=3, column=2, columnspan=2, sticky=tk.W, padx=5, pady=5)
 
         # File List / Progress Table
         tree_frame = ttk.Frame(main_frame)
@@ -198,7 +252,7 @@ class RemuxApp:
         self.start_button = ttk.Button(control_frame, text="Start Remux", command=self.start_remux)
         self.start_button.pack(side=tk.RIGHT)
 
-        self.status_label = ttk.Label(control_frame, text="Ready.", anchor=tk.W)
+        self.status_label = ttk.Label(control_frame, text="Ready. Select an input directory to begin.", anchor=tk.W)
         self.status_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         if not self.mkvmerge_path:
@@ -211,6 +265,8 @@ class RemuxApp:
             self.input_dir.set(path)
             if not self.output_dir.get():
                 self.output_dir.set(str(Path(path) / "remuxed"))
+            # Automatically scan for languages
+            self.scan_languages()
 
     def browse_output(self):
         path = filedialog.askdirectory()
@@ -219,6 +275,65 @@ class RemuxApp:
 
     def show_error(self, message):
         messagebox.showerror("Error", message)
+
+    def scan_languages(self):
+        """Automatically scan MKV files and display available languages."""
+        input_path = Path(self.input_dir.get())
+        
+        if not input_path.is_dir():
+            return
+        
+        mkv_files = sorted(input_path.glob("*.mkv"))
+        if not mkv_files:
+            self.avail_audio_label.config(text="No MKV files found", foreground="red")
+            self.avail_sub_label.config(text="No MKV files found", foreground="red")
+            self.status_label.config(text="No .mkv files found in the input directory.")
+            return
+        
+        self.avail_audio_label.config(text=f"Scanning {len(mkv_files)} files...", foreground="blue")
+        self.avail_sub_label.config(text=f"Scanning {len(mkv_files)} files...", foreground="blue")
+        self.status_label.config(text=f"Scanning {len(mkv_files)} files for available languages...")
+        self.root.update()
+        
+        # Run scan in separate thread to avoid freezing GUI
+        def scan_thread():
+            audio_langs, sub_langs = get_available_languages(self.mkvmerge_path, mkv_files)
+            self.root.after(0, lambda: self.update_available_languages(audio_langs, sub_langs))
+        
+        threading.Thread(target=scan_thread, daemon=True).start()
+
+    def update_available_languages(self, audio_langs, sub_langs):
+        """Update the display with scanned languages."""
+        self.available_audio_langs = audio_langs
+        self.available_sub_langs = sub_langs
+        
+        if audio_langs:
+            audio_text = ", ".join(audio_langs)
+            self.avail_audio_label.config(text=audio_text, foreground="green")
+        else:
+            self.avail_audio_label.config(text="None found", foreground="orange")
+        
+        if sub_langs:
+            sub_text = ", ".join(sub_langs)
+            self.avail_sub_label.config(text=sub_text, foreground="green")
+        else:
+            self.avail_sub_label.config(text="None found", foreground="orange")
+        
+        self.status_label.config(text=f"Scan complete. Found {len(audio_langs)} audio and {len(sub_langs)} subtitle languages.")
+
+    def select_all_audio(self):
+        """Select all available audio languages."""
+        if self.available_audio_langs:
+            self.audio_langs.set(",".join(self.available_audio_langs))
+        else:
+            messagebox.showinfo("No Languages", "No audio languages available. Please scan files first.")
+
+    def select_all_subs(self):
+        """Select all available subtitle languages."""
+        if self.available_sub_langs:
+            self.sub_langs.set(",".join(self.available_sub_langs))
+        else:
+            messagebox.showinfo("No Languages", "No subtitle languages available. Please scan files first.")
 
     def start_remux(self):
         if self.running:
