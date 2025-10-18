@@ -1,66 +1,135 @@
-# MKV Batch Remuxer (Project 13)
+<div align="center">
+  <img src="https://via.placeholder.com/600x200.png?text=MKV+Batch+Remuxer" alt="Project Banner">
+  <h1>MKV Batch Remuxer</h1>
+  <p>
+    A powerful and versatile tool for batch remuxing MKV files with both a GUI and a CLI.
+  </p>
 
-This project provides a tool to batch remux Matroska Video (MKV) files, allowing the user to select specific audio and subtitle tracks to keep while discarding the rest. It comes in two versions: a command-line interface (CLI) and a graphical user interface (GUI).
+  <!-- Badges -->
+  <p>
+    <a href="https://github.com/mlbkumar9/Project_13/blob/main/LICENSE"><img src="https://img.shields.io/github/license/mlbkumar9/Project_13?style=for-the-badge" alt="License"></a>
+    <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.7+-blue?style=for-the-badge&logo=python" alt="Python Version"></a>
+    <a href="https://mkvtoolnix.download/"><img src="https://img.shields.io/badge/MKVToolNix-Required-green?style=for-the-badge" alt="MKVToolNix"></a>
+  </p>
+</div>
 
-## Features
+---
 
-- **Batch Processing:** Remux multiple `.mkv` files in a single operation.
-- **Language Selection:** Specify which audio and subtitle languages to keep (e.g., `eng`, `jpn`).
-- **CLI and GUI:** Choose between a powerful command-line script or an easy-to-use graphical interface.
-- **Flexible Options:** Includes options to skip already processed files and perform a "dry run" to see what commands will be executed without modifying any files.
-- **Live Progress:** Both versions provide real-time feedback on the remuxing process.
+## 📖 Overview
 
-## Prerequisites
+MKV Batch Remuxer is a robust, cross-platform tool designed to streamline the process of remuxing Matroska (MKV) files. Whether you prefer a graphical interface or a command-line workflow, this tool provides a comprehensive solution for efficiently processing large batches of video files. It's built with Python and leverages the power of `mkvmerge` to provide accurate and fast remuxing capabilities.
 
-Before you begin, ensure you have the following installed:
+---
 
-1.  **Python 3:** Make sure Python 3 is installed and accessible from your command line.
-2.  **MKVToolNix:** This provides the underlying `mkvmerge` command-line tool that performs the remuxing. You can download it from the [official MKVToolNix website](https://mkvtoolnix.download/). Please ensure the installation directory is added to your system's PATH, or the script will try to find it in the default Windows location.
+## ✨ Key Features
 
-## Setup
+This tool is packed with features to make your media management tasks as simple and efficient as possible.
 
-1.  **Clone the repository (or download the files):**
+### 🖥️ Graphical User Interface (`REMUX_GUI.py`)
+
+*   **Intuitive Design:** A clean and user-friendly interface built with Tkinter, perfect for visual users.
+*   **Effortless File Handling:** Easily select input and output directories using the file browser.
+*   **Automatic Language Detection:** Intelligently scans all MKV files to find available audio and subtitle tracks.
+*   **Flexible Language Selection:** Use quick-select buttons or manually input a comma-separated list of ISO 639-2 language codes.
+*   **Safety First:** Includes options for a "dry run" to preview changes and to skip files that already exist in the output directory.
+*   **Real-Time Progress:** A detailed table provides live feedback on the status of each file, including progress bars and time estimates.
+*   **Non-Blocking Operation:** The GUI remains responsive thanks to multi-threaded processing, even during intensive operations.
+*   **Clear Summaries:** A post-processing summary details the number of successful and failed operations.
+
+### ⌨️ Command-Line Interface (`REMUX_Script.py`)
+
+*   **Rich & Interactive:** A modern and colorful CLI powered by the `rich` library for an enhanced user experience.
+*   **Guided Workflow:** Interactive prompts walk you through every step of the configuration process.
+*   **Smart Scanning:** Automatically detects and displays available audio and subtitle languages from your files.
+*   **Live Progress Tracking:** A beautifully formatted, real-time table shows the progress of individual files and the overall batch.
+*   **Comprehensive Logging:** All actions, including the exact `mkvmerge` commands executed, are logged to `remux_log.txt` for easy debugging and review.
+*   **Cross-Platform:** Automatically detects the `mkvmerge` executable on Windows, macOS, and Linux.
+
+---
+
+## 🚀 Getting Started
+
+Follow these steps to get the MKV Batch Remuxer up and running on your system.
+
+### Prerequisites
+
+*   **Python 3.7+**
+*   **MKVToolNix:** The `mkvmerge` command-line tool must be installed and accessible in your system's PATH. You can download it from the [official website](https://mkvtoolnix.download/).
+
+### Installation
+
+1.  **Clone the repository:**
     ```bash
-    git clone <repository-url>
+    git clone https://github.com/mlbkumar9/Project_13.git
     cd Project_13
     ```
 
-2.  **Install the required Python packages:**
-    Navigate to the project directory in your terminal and run the following command to install the `rich` library, which is used by the CLI script:
+2.  **Install dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
 
-## How to Run
+---
 
-There are two scripts located in the `REMUX Python Scripts` directory.
+## ⚙️ Usage
 
-### 1. GUI Version (`remux_gui.py`)
+You can run the tool in either GUI or CLI mode.
 
-This is the recommended version for most users.
+### GUI Mode
 
-1.  **Run the script:**
-    ```bash
-    python "REMUX Python Scripts/remux_gui.py"
-    ```
-2.  **Using the application:**
-    -   Click **Browse...** to select your **Input** directory (where your MKV files are) and **Output** directory.
-    -   In the **Audio Langs** and **Subtitle Langs** fields, enter the 3-letter language codes you wish to keep, separated by commas (e.g., `eng,jpn`).
-    -   Select the desired options (`Skip if output exists`, `Dry-run only`).
-    -   Click **Start Remux** to begin the process.
-    -   Progress will be displayed in the table.
+Launch the graphical interface with the following command:
 
-### 2. Command-Line Version (`1_Improved_REMUX_Script.py`)
+```bash
+python "Project_13/REMUX_GUI.py"
+```
 
-This version is for users who prefer working in the terminal.
+### CLI Mode
 
-1.  **Run the script:**
-    ```bash
-    python "REMUX Python Scripts/1_Improved_REMUX_Script.py"
-    ```
-2.  **Follow the prompts:**
-    -   The script will ask you to enter the path to your input directory.
-    -   It will then ask for the output directory path (you can leave this blank to create a `remuxed` folder inside the input directory).
-    -   You will be prompted to enter the desired audio and subtitle languages (comma-separated).
-    -   Finally, you will be asked if you want to skip existing files or perform a dry run.
-    -   The script will then display a live progress table in your terminal.
+Launch the interactive command-line interface with this command:
+
+```bash
+python "Project_13/REMUX_Script.py"
+```
+
+---
+
+## 📁 Project Structure
+
+```
+Project_13/
+├── .github/                # GitHub-specific files
+├── docs/                   # Project documentation
+├── Project_13/             # Core source code
+│   ├── REMUX_GUI.py        # The GUI application script
+│   └── REMUX_Script.py     # The CLI application script
+├── REMUX Python Scripts/   # Additional Python scripts
+├── .gitignore              # Files to be ignored by Git
+├── CHANGELOG.md            # A log of changes to the project
+├── CODE_OF_CONDUCT.md      # Guidelines for community interaction
+├── CONTRIBUTING.md         # Guidelines for contributing to the project
+├── LICENSE                 # The project's open-source license
+├── README.md               # This file
+└── requirements.txt        # A list of Python dependencies
+```
+
+---
+
+## 🤝 Contributing
+
+Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+
+Please read our [CONTRIBUTING.md](CONTRIBUTING.md) file for details on our code of conduct and the process for submitting pull requests.
+
+---
+
+## 📄 License
+
+This project is distributed under the MIT License. See the `LICENSE` file for more information.
+
+---
+
+## 🙏 Acknowledgments
+
+*   [MKVToolNix](https://mkvtoolnix.download/)
+*   [Rich](https://github.com/Textualize/rich)
+*   [Tkinter](https://docs.python.org/3/library/tkinter.html)
