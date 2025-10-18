@@ -1,14 +1,40 @@
 # Changelog
 
 ## [1.0.0] - 2025-10-18
+
 ### Added
-- Initial release documenting version history, changes, improvements, and bug fixes.
+- GUI version
+- CLI version with Rich library
+- Batch processing
+- Language selection
+- Auto-detect
+- Dry run mode
+- Real-time progress tracking
+- Cross-platform support
 
-### Changes
-- Overview of changes made in this version.
+### Technical Details
+- Python 3.7+ support
+- MKVToolNix integration
+- Threading support
 
-### Improvements
-- List of improvements made in this version.
+### Dependencies
+- Rich library
+- Tkinter
 
-### Bug Fixes
-- List of bug fixes made in this version.
+### Documentation Updates
+- Improved documentation for better understanding
+
+### Supported Platforms
+- Windows
+- macOS
+- Linux
+
+### Planned Future Enhancements
+- Multi-threading support
+- Presets for common configurations
+- Standalone executables
+- Support for additional formats
+- Web interface for easier access
+- Detailed logging features
+- Track selection capabilities
+- Codec conversion functionality
